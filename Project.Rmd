@@ -1,0 +1,99 @@
+---
+title: "Practical Machine Learning Course Project"
+output: html_document
+---
+
+#Introduction
+The purpose of this project is to attempt to predict the quality of an exercise based on sensor data collected during the performance of the exercise.  Six test subjects were asked to perform the Unilateral Dumbbell Biceps Curl in five different ways.  Sensors were placed in four locations during the exercise:  on the forearm, bicep, belt and dumbbell.  Each sensor contained an accelerometer, gyroscope and magnatometer that collected data in each of the three principle axis for a total of 9 degrees of freedom for a total of 36 independent measurements during the exercise.
+
+Velloso, E.; Bulling, A.; Gellersen, H.; Ugulino, W.; Fuks, H. Qualitative Activity Recognition of Weight Lifting Exercises. Proceedings of 4th International Conference in Cooperation with SIGCHI (Augmented Human '13) . Stuttgart, Germany: ACM SIGCHI, 2013.
+
+#Data Preparation
+##Load the Required Libraries for Analysis
+
+```{r}
+library(caret)
+library(randomForest)
+```
+
+##Load the Training and Test Data Sets
+The .csv files for the training and testing data sets are loaded into memory.
+
+```{r}
+pml_training <- read.csv("pml-training.csv", na.strings=c("NA",""), header=TRUE)
+pml_testing <- read.csv("pml-testing.csv", na.strings=c("NA",""), header=TRUE)
+```
+
+##Cleaning the Data Sets
+Columns with missing data are removed from the data sets.
+
+```{r}
+pml_training <- pml_training[,!apply(is.na(pml_training), 2, any)]
+pml_testing <- pml_testing[,!apply(is.na(pml_testing), 2, any)]
+```
+
+The first seven columns are removed from the data set as they contain no predictive value.
+
+```{r}
+pml_training <- pml_training[c(-1:-7)]
+pml_testing <- pml_testing[c(-1:-7)]
+
+```
+
+The final training data sets contain the following columns:
+```{r}
+names(pml_training)
+```
+
+For purposes of validation the training data set is further subsetted into a training and validation data set.  Data is randomly assigned to the two sets so that 60% is available for training and 40% is available for validation.
+
+```{r}
+set.seed(1)
+inTrain <- createDataPartition(y=pml_training$classe, p=0.6, list=FALSE)
+training <- pml_training[inTrain,]
+validation <- pml_training[-inTrain,]
+```
+
+#Training the Model
+A Random Forest model is trained to predict the variable classe because its high accuracy rate.
+
+```{r}
+rfmod <- train(classe~., method = "rf", data = training, allowParallel=TRUE )
+```
+
+#Model Accuracy
+##Accuracy of Training Set
+The accuracy of the initial model is determined by comparing the predicticted classe outcome to the acctual classe data.
+
+```{r}
+training_pred <- predict(rfmod, training)
+confusionMatrix(training_pred, training$classe)
+```
+
+The results show that the model was able to predict results with 100% accuracy from the original training data set.
+
+##Accuracy of Cross Validation Set
+The initial model is used with the validation set to prediction the accuracy of the model.
+
+```{r}
+validation_pred <- predict(rfmod, validation)
+confusionMatrix(validation_pred, validation$classe)
+```
+
+The results show that the model was able to predict with 99.3% accuracy from the validation data set.
+
+#Retraining the Model
+Now that the Random Forest model has shown a high degree of accuracy when using a subset of the initial training data, the model is re-taught using the complete training data set.
+
+```{r}
+rfmod_final <- train(classe~., method = "rf", data = pml_training, allowParallel=TRUE )
+final_pred <- predict(rfmod_final, pml_training)
+confusionMatrix(final_pred, pml_training$classe)
+```
+
+#Predicting Testing Set Results
+```{r}
+test_pred <- predict(rfmod_final, pml_testing)
+test_pred
+```
+
